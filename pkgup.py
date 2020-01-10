@@ -66,7 +66,7 @@ def source_process():
                        "$pkgname": pkgname,
                        '("': '',
                        '")': '',
-                       tar_file_name: ''}
+                       tar_file_name + "::": ''}
     for x, y in link_clean_list.items():
         source = source.replace(x, y)
     return source
