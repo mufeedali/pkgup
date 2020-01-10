@@ -59,12 +59,14 @@ def source_process():
         author = author.replace("_author=", "")
     source = re.search("source=.*", pkgbuild_content,
                        flags=re.IGNORECASE).group(0).replace("source=", "")
+    tar_file_name = "{}-{}.tar.gz".format(gitname, args.pkgver)
     link_clean_list = {"$_author": author,
                        "$_gitname": gitname,
                        "$pkgver": args.pkgver,
                        "$pkgname": pkgname,
                        '("': '',
-                       '")': ''}
+                       '")': '',
+                       tar_file_name: ''}
     for x, y in link_clean_list.items():
         source = source.replace(x, y)
     return source
@@ -119,7 +121,7 @@ def download_src(repeat=False):
     """Download the source file and run integrity_check."""
     global gitname
     source = source_process()
-    src_file_name = gitname + "-v" + args.pkgver + ".tar.gz"
+    src_file_name = "{}-v{}.tar.gz".format(gitname, args.pkgver)
     if not repeat:
         print("Download source processed as: " + source)
         print("File name will be: " + src_file_name)
