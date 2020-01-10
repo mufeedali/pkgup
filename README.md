@@ -1,5 +1,13 @@
 # pkgup
-A python script for easily updating my PKGBUILDs on the AUR. Specifically for my packages. Might or might not work for others.
+A python script for easily updating PKGBUILDs. Made specifically for my packages. Can work for others if PKGBUILD is written accordingly. But it's only suitable for smaller packages with good build systems.
+
+### What does it do?
+ - Increases the pkgver and pkgrel to desired values.
+ - Downloads the source as '.tar.gz'
+ - Verifies basic integrity (`gzip -t`) and re-downloads if necessary.
+ - Generates SHA256 checksum of source file.
+ - Updates PKGBUILD accordingly.
+ - Updates .SRCINFO accordingly. (`makepkg --printsrcinfo`)
 
 ### Dependencies
  - `python-tqdm`
