@@ -98,10 +98,12 @@ def pkgbuild_update(pkgver, new_hash):
     update_list = {sha256sums: "sha256sums=('{}')".format(new_hash),
                    old_ver: "pkgver=" + pkgver,
                    old_rel: "pkgrel=" + str(pkgrel)}
+    pkgbuildnew = pkgbuild_content
     for x, y in update_list.items():
-        pkgbuildnew = pkgbuild_content.replace(x, y)
+        pkgbuildnew = pkgbuildnew.replace(x, y)
     with open('PKGBUILD', 'w') as pkgbuild:
         pkgbuild.write(pkgbuildnew)
+    print(pkgbuildnew)
     print("PKGBUILD Updated.")
 
 
