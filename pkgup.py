@@ -28,12 +28,13 @@ else:
     PKG_REL = 1
 
 
-class pkgup():
+class PkgUp():
 
     gitname = None
     pkgbuild_content = None
 
-    def file_hasher(self, src_file_path):
+    @staticmethod
+    def file_hasher(src_file_path):
         """Find SHA256 hash of the source file."""
         sha256 = hashlib.sha256()
         with open(src_file_path, "rb") as src_file:
@@ -108,7 +109,8 @@ class pkgup():
         print(pkgbuild_new)
         print("PKGBUILD Updated.")
 
-    def srcinfo_update(self):
+    @staticmethod
+    def srcinfo_update():
         """Update the .SRCINFO file."""
         srcinfo_gen = subprocess.Popen(["makepkg", "--printsrcinfo"],
                                        stdout=subprocess.PIPE,
@@ -151,4 +153,4 @@ class pkgup():
 
 
 if __name__ == '__main__':
-    pkgup().main()
+    PkgUp().main()
