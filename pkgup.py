@@ -20,138 +20,135 @@ parser = argparse.ArgumentParser(description="Update PKGBUILDs easily.")
 parser.add_argument("pkgver", help="Version to update to")
 parser.add_argument("-r", "--pkgrel", type=int,
                     help="Release number to update to")
-args = parser.parse_args()
+ARGS = parser.parse_args()
 
-if args.pkgrel:
-    pkgrel = args.pkgrel
+if ARGS.pkgrel:
+    PKG_REL = ARGS.pkgrel
 else:
-    pkgrel = 1
+    PKG_REL = 1
 
 
-def file_hasher(src_file_path):
-    """Find SHA256 hash of the source file."""
-    sha256 = hashlib.sha256()
-    with open(src_file_path, "rb") as src_file:
-        # The file may be large, so read it as blocks of 65536 bytes (64 KBs)
-        for block in iter(lambda: src_file.read(65536), b""):
-            sha256.update(block)
-    return sha256.hexdigest()
+class pkgup():
 
+    gitname = None
+    pkgbuild_content = None
 
-def source_process():
-    """Process the source link."""
-    global gitname
-    pkgname = re.search("pkgname=.*", pkgbuild_content,
-                        flags=re.IGNORECASE).group(0).replace("pkgname=", "")
-    gitname = re.search("_gitname=.*", pkgbuild_content,
-                        flags=re.IGNORECASE).group(0)
-    if gitname is None:
-        print("_gitname not set, using pkgname instead.")
-        gitname = pkgname
-    else:
-        gitname = gitname.replace("_gitname=", "")
-    author = re.search("_author=.*", pkgbuild_content,
-                       flags=re.IGNORECASE).group(0)
-    if author is None:
-        print("_author not set. Does not effect anything unless" +
-              " $_author is used in source.")
-    else:
-        author = author.replace("_author=", "")
-    source = re.search("source=.*", pkgbuild_content,
-                       flags=re.IGNORECASE).group(0).replace("source=", "")
-    tar_file_name = "{}-{}.tar.gz".format(gitname, args.pkgver)
-    link_clean_list = {"$_author": author,
-                       "$_gitname": gitname,
-                       "$pkgver": args.pkgver,
-                       "$pkgname": pkgname,
-                       '("': '',
-                       '")': '',
-                       tar_file_name + "::": ''}
-    for x, y in link_clean_list.items():
-        source = source.replace(x, y)
-    return source
+    def file_hasher(self, src_file_path):
+        """Find SHA256 hash of the source file."""
+        sha256 = hashlib.sha256()
+        with open(src_file_path, "rb") as src_file:
+            # The file may be large, read it as blocks of 65536 bytes (64 KBs).
+            for block in iter(lambda: src_file.read(65536), b""):
+                sha256.update(block)
+        return sha256.hexdigest()
 
-
-def integrity_check(file_name):
-    """Check the integrity of the source file and re-download if necessary."""
-    check = subprocess.Popen(["gzip", "-t", file_name],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    check.wait()
-    if check.returncode == 0:
-        print("File seems okay. Proceed.")
-    else:
-        print('File is broken. Re-downloading.')
-        os.remove(file_name)
-        download_src(repeat=True)
-
-
-def pkgbuild_update(pkgver, new_hash):
-    """Update the PKGBUILD according to the changes."""
-    global pkgbuild_content
-    sha256sums = re.search('sha256sums=.*', pkgbuild_content,
+    def source_process(self):
+        """Process the source link."""
+        pkgname = re.search("pkgname=.*",
+                            self.pkgbuild_content,
+                            flags=re.IGNORECASE
+                            ).group(0).replace("pkgname=", "")
+        self.gitname = re.search("_gitname=.*", self.pkgbuild_content,
+                                 flags=re.IGNORECASE).group(0)
+        if self.gitname is None:
+            print("_gitname not set, using pkgname instead.")
+            self.gitname = pkgname
+        else:
+            self.gitname = self.gitname.replace("_gitname=", "")
+        author = re.search("_author=.*", self.pkgbuild_content,
                            flags=re.IGNORECASE).group(0)
-    old_ver = re.search('pkgver=.*', pkgbuild_content,
-                        flags=re.IGNORECASE).group(0)
-    old_rel = re.search('pkgrel=.*', pkgbuild_content,
-                        flags=re.IGNORECASE).group(0)
-    update_list = {sha256sums: "sha256sums=('{}')".format(new_hash),
-                   old_ver: "pkgver=" + pkgver,
-                   old_rel: "pkgrel=" + str(pkgrel)}
-    pkgbuildnew = pkgbuild_content
-    for x, y in update_list.items():
-        pkgbuildnew = pkgbuildnew.replace(x, y)
-    with open('PKGBUILD', 'w') as pkgbuild:
-        pkgbuild.write(pkgbuildnew)
-    print(pkgbuildnew)
-    print("PKGBUILD Updated.")
+        if author is None:
+            print("_author not set. Does not effect anything unless" +
+                  " $_author is used in source.")
+        else:
+            author = author.replace("_author=", "")
+        source = re.search("source=.*", self.pkgbuild_content,
+                           flags=re.IGNORECASE).group(0).replace("source=", "")
+        tar_file_name = "{}-{}.tar.gz".format(self.gitname, ARGS.pkgver)
+        link_clean_list = {"$_author": author,
+                           "$_gitname": self.gitname,
+                           "$pkgver": ARGS.pkgver,
+                           "$pkgname": pkgname,
+                           '("': '',
+                           '")': '',
+                           tar_file_name + "::": ''}
+        for old_val, new_val in link_clean_list.items():
+            source = source.replace(old_val, new_val)
+        return source
 
+    def integrity_check(self, file_name):
+        """Check the integrity of the source file and re-download if needed."""
+        check = subprocess.Popen(["gzip", "-t", file_name],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        check.wait()
+        if check.returncode == 0:
+            print("File seems okay. Proceed.")
+        else:
+            print('File is broken. Re-downloading.')
+            os.remove(file_name)
+            self.download_src(repeat=True)
 
-def srcinfo_update():
-    """Update the .SRCINFO file."""
-    srcinfo_gen = subprocess.Popen(["makepkg", "--printsrcinfo"],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
-    srcinfo_gen.wait()
-    srcinfo = srcinfo_gen.stdout.read().decode()
-    with open('.SRCINFO', 'w') as srcinfo_file:
-        srcinfo_file.write(srcinfo)
-    print(".SRCINFO Updated.")
+    def pkgbuild_update(self, pkgver, new_hash):
+        """Update the PKGBUILD according to the changes."""
+        sha256sums = re.search('sha256sums=.*', self.pkgbuild_content,
+                               flags=re.IGNORECASE).group(0)
+        old_ver = re.search('pkgver=.*', self.pkgbuild_content,
+                            flags=re.IGNORECASE).group(0)
+        old_rel = re.search('pkgrel=.*', self.pkgbuild_content,
+                            flags=re.IGNORECASE).group(0)
+        update_list = {sha256sums: f"sha256sums=('{new_hash}')",
+                       old_ver: f"pkgver={pkgver}",
+                       old_rel: f"pkgrel={str(PKG_REL)}"}
+        pkgbuild_new = self.pkgbuild_content
+        for old_val, new_val in update_list.items():
+            pkgbuild_new = pkgbuild_new.replace(old_val, new_val)
+        with open('PKGBUILD', 'w') as pkgbuild:
+            pkgbuild.write(pkgbuild_new)
+        print(pkgbuild_new)
+        print("PKGBUILD Updated.")
 
+    def srcinfo_update(self):
+        """Update the .SRCINFO file."""
+        srcinfo_gen = subprocess.Popen(["makepkg", "--printsrcinfo"],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+        srcinfo_gen.wait()
+        srcinfo = srcinfo_gen.stdout.read().decode()
+        with open('.SRCINFO', 'w') as srcinfo_file:
+            srcinfo_file.write(srcinfo)
+        print(".SRCINFO Updated.")
 
-def download_src(repeat=False):
-    """Download the source file and run integrity_check."""
-    global gitname
-    source = source_process()
-    src_file_name = "{}-v{}.tar.gz".format(gitname, args.pkgver)
-    if not repeat:
-        print("Download source processed as: " + source)
-        print("File name will be: " + src_file_name)
-    if not os.path.exists(src_file_name):
-        r = requests.get(source, stream=True)
-        file_size = int(r.headers.get('content-length', 0))
-        prog = tqdm(total=file_size, unit='iB', unit_scale=True)
-        with open(src_file_name, 'wb') as src_file:
-            for data in r.iter_content(chunk_size=1024):
-                prog.update(len(data))
-                src_file.write(data)
-                src_file.flush()
-        prog.close()
-    integrity_check(src_file_name)
-    return src_file_name
+    def download_src(self, repeat=False):
+        """Download the source file and run integrity_check."""
+        source = self.source_process()
+        src_file_name = "{}-v{}.tar.gz".format(self.gitname, ARGS.pkgver)
+        if not repeat:
+            print("Download source processed as: " + source)
+            print("File name will be: " + src_file_name)
+        if not os.path.exists(src_file_name):
+            request = requests.get(source, stream=True)
+            file_size = int(request.headers.get('content-length', 0))
+            prog = tqdm(total=file_size, unit='iB', unit_scale=True)
+            with open(src_file_name, 'wb') as src_file:
+                for data in request.iter_content(chunk_size=1024):
+                    prog.update(len(data))
+                    src_file.write(data)
+                    src_file.flush()
+            prog.close()
+        self.integrity_check(src_file_name)
+        return src_file_name
 
-
-def main():
-    """Read PKGBUILD and run other functions in order."""
-    global gitname, pkgbuild_content
-    with open('PKGBUILD', 'r') as pkgbuild:
-        pkgbuild_content = pkgbuild.read()
-    src_file_name = download_src()
-    src_hash = file_hasher(src_file_name)
-    print("SHA256 Sum found to be: " + src_hash)
-    pkgbuild_update(args.pkgver, src_hash)
-    srcinfo_update()
+    def main(self):
+        """Read PKGBUILD and run other functions in order."""
+        with open('PKGBUILD', 'r') as pkgbuild:
+            self.pkgbuild_content = pkgbuild.read()
+        src_file_name = self.download_src()
+        src_hash = self.file_hasher(src_file_name)
+        print("SHA256 Sum found to be: " + src_hash)
+        self.pkgbuild_update(ARGS.pkgver, src_hash)
+        self.srcinfo_update()
 
 
 if __name__ == '__main__':
-    main()
+    pkgup().main()
