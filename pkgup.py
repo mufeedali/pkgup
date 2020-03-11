@@ -9,26 +9,23 @@ that changing the release number makes no real changes.
 """
 
 import argparse
-import re
 import hashlib
+import os
+import re
+import subprocess
+
 from tqdm import tqdm
 import requests
-import subprocess
-import os
 
-parser = argparse.ArgumentParser(description="Update PKGBUILDs easily.")
-parser.add_argument("pkgver", help="Version to update to")
-parser.add_argument("-r", "--pkgrel", type=int,
+PARSER = argparse.ArgumentParser(description="Update PKGBUILDs easily.")
+PARSER.add_argument("pkgver", help="Version to update to")
+PARSER.add_argument("-r", "--pkgrel", type=int,
                     help="Release number to update to")
-ARGS = parser.parse_args()
-
-if ARGS.pkgrel:
-    PKG_REL = ARGS.pkgrel
-else:
-    PKG_REL = 1
+ARGS = PARSER.parse_args()
 
 
 class PkgUp():
+    """Perform updation operations on the PKGBUILD."""
 
     gitname = None
     pkgbuild_content = None
@@ -65,7 +62,7 @@ class PkgUp():
             author = author.replace("_author=", "")
         source = re.search("source=.*", self.pkgbuild_content,
                            flags=re.IGNORECASE).group(0).replace("source=", "")
-        tar_file_name = "{}-{}.tar.gz".format(self.gitname, ARGS.pkgver)
+        tar_file_name = f"{self.gitname}-{ARGS.pkgver}.tar.gz"
         link_clean_list = {"$_author": author,
                            "$_gitname": self.gitname,
                            "$pkgver": ARGS.pkgver,
@@ -100,13 +97,12 @@ class PkgUp():
                             flags=re.IGNORECASE).group(0)
         update_list = {sha256sums: f"sha256sums=('{new_hash}')",
                        old_ver: f"pkgver={pkgver}",
-                       old_rel: f"pkgrel={str(PKG_REL)}"}
+                       old_rel: f"pkgrel={str(ARGS.pkgrel or 1)}"}
         pkgbuild_new = self.pkgbuild_content
         for old_val, new_val in update_list.items():
             pkgbuild_new = pkgbuild_new.replace(old_val, new_val)
         with open('PKGBUILD', 'w') as pkgbuild:
             pkgbuild.write(pkgbuild_new)
-        print(pkgbuild_new)
         print("PKGBUILD Updated.")
 
     @staticmethod
@@ -124,7 +120,7 @@ class PkgUp():
     def download_src(self, repeat=False):
         """Download the source file and run integrity_check."""
         source = self.source_process()
-        src_file_name = "{}-v{}.tar.gz".format(self.gitname, ARGS.pkgver)
+        src_file_name = f"{self.gitname}-v{ARGS.pkgver}.tar.gz"
         if not repeat:
             print("Download source processed as: " + source)
             print("File name will be: " + src_file_name)
