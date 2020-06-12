@@ -21,6 +21,10 @@ PARSER = argparse.ArgumentParser(description="Update PKGBUILDs easily.")
 PARSER.add_argument("pkgver", help="Version to update to")
 PARSER.add_argument("-r", "--pkgrel", type=int,
                     help="Release number to update to")
+PARSER.add_argument("-s", "--skip-checks", action="store_true",
+                    help="Skip gzip integrity checks")
+PARSER.add_argument("-f", "--format", type=str,
+                    help="Custom file format")
 ARGS = PARSER.parse_args()
 
 
@@ -50,20 +54,21 @@ class PkgUp():
                             ).group(0).replace("pkgname=", "")
         # Get the git repository name.
         self.gitname = re.search("_gitname=.*", self.pkgbuild_content,
-                                 flags=re.IGNORECASE).group(0)
+                                 flags=re.IGNORECASE)
         if self.gitname is None:
             print("_gitname not set, using pkgname instead.")
             self.gitname = pkgname
         else:
-            self.gitname = self.gitname.replace("_gitname=", "")
+            self.gitname = self.gitname.group(0).replace("_gitname=", "")
         # Get the author name.
         author = re.search("_author=.*", self.pkgbuild_content,
-                           flags=re.IGNORECASE).group(0)
+                           flags=re.IGNORECASE)
         if author is None:
             print("_author not set. Does not effect anything unless" +
                   " $_author is used in source.")
+            author = ""
         else:
-            author = author.replace("_author=", "")
+            author = author.group(0).replace("_author=", "")
         # Get the source link.
         source = re.search("source=.*", self.pkgbuild_content,
                            flags=re.IGNORECASE).group(0).replace("source=", "")
@@ -80,7 +85,7 @@ class PkgUp():
         }
         for old_val, new_val in link_clean_list.items():
             source = source.replace(old_val, new_val)
-        return source
+        return source.strip('()')
 
     def integrity_check(self, file_name):
         """Check the integrity of the source file and re-download if needed."""
@@ -139,7 +144,10 @@ class PkgUp():
         """Download the source file and run integrity_check."""
         source = self.source_process()  # Get source link.
         # Get downloaded source file name.
-        src_file_name = f"{self.gitname}-v{ARGS.pkgver}.tar.gz"
+        if ARGS.format:
+            src_file_name = f"{self.gitname}-v{ARGS.pkgver}.{ARGS.format}"
+        else:
+            src_file_name = f"{self.gitname}-v{ARGS.pkgver}.tar.gz"
         # Check if the file is being re-downloaded.
         if not repeat:
             # Print this only once.
@@ -157,7 +165,8 @@ class PkgUp():
                     src_file.write(data)
                     src_file.flush()
             prog.close()
-        self.integrity_check(src_file_name)  # Check file integrity.
+        if src_file_name.endswith('gz') and not ARGS.skip_checks:
+            self.integrity_check(src_file_name)  # Check file integrity.
         return src_file_name  # Return the file name.
 
     def main(self):
