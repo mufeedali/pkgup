@@ -73,7 +73,10 @@ class PkgUp():
         source = re.search("source=.*", self.pkgbuild_content,
                            flags=re.IGNORECASE).group(0).replace("source=", "")
         # Clean the source link.
-        tar_file_name = f"{self.gitname}-{ARGS.pkgver}.tar.gz"
+        if ARGS.format:
+            src_file_name = f"{self.gitname}-v{ARGS.pkgver}.{ARGS.format}"
+        else:
+            src_file_name = f"{self.gitname}-v{ARGS.pkgver}.tar.gz"
         link_clean_list = {
             "$_author": author,
             "$_gitname": self.gitname,
@@ -81,11 +84,11 @@ class PkgUp():
             "$pkgname": pkgname,
             '("': '',
             '")': '',
-            tar_file_name + "::": ''
+            src_file_name + "::": '',
         }
         for old_val, new_val in link_clean_list.items():
             source = source.replace(old_val, new_val)
-        return source.strip('()')
+        return source.strip('()').strip()
 
     def integrity_check(self, file_name):
         """Check the integrity of the source file and re-download if needed."""
